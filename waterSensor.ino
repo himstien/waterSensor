@@ -1,3 +1,7 @@
+#include "WifiConfig.h"
+
+#include "CloudSettings.h"
+
 // Potentiometer is connected to GPIO 34 (Analog ADC1_CH6) 
 const int sensorPin = 34;
 
@@ -10,31 +14,64 @@ int sensorValue = 0;
 int MAX_VALUE = 4095;
 int MIN_VALUE = 1200;
 
-unsigned long TIMEBEFORENEXTTEST = 10000;
+unsigned long TIME_BEFORE_NEXT_TEST = 30000;
+unsigned long TIME_MOTOR_ON = 5000;
 
 unsigned long lastTimeWhenChecked = 0;
 
+double WATER_THRESHOLD = 0.7;
+
+double sensorDouble = 0.0;
+
 void setup() {
   Serial.begin(115200);
+
+  //wifiMulti.addAP(ssidLab, passLab);
+  wifiMulti.addAP(ssidHome, passHome);
+
+    // CONNECT TO WIFI
+  int numAttmpt = 0;
+  while (wifiMulti.run() != WL_CONNECTED && numAttmpt < 10)
+  {
+    delay(500);
+    Serial.print(".");
+    numAttmpt++; 
+  }
+  if(numAttmpt < 10)
+  {
+    WiFiStatus = WIFI_CONNECTED;
+    Serial.println("");
+    Serial.println("WiFi connected");
+  }
+  else
+  {
+    WiFiStatus = WIFI_UNAVAILABLE;
+    Serial.println("");
+    Serial.println("Couldn't connet to WiFi");
+  }
+
+
+
   pinMode(LEDPIN,OUTPUT);
   pinMode(MOTORPIN,OUTPUT);
   delay(1000);
 
   lastTimeWhenChecked = millis();
+  TIME_SINCE_LAST_SEND = millis();
 }
 
 void loop() {
   // Reading potentiometer value
   sensorValue = analogRead(sensorPin);
-  double sensorDouble = double(sensorValue-MIN_VALUE)/double(MAX_VALUE-MIN_VALUE);
+  sensorDouble = double(sensorValue-MIN_VALUE)/double(MAX_VALUE-MIN_VALUE);
 
   double timeSinceLastCheck = millis() - lastTimeWhenChecked ;
   
-  if(sensorDouble > 0.45 && timeSinceLastCheck > TIMEBEFORENEXTTEST)
+  if(sensorDouble > WATER_THRESHOLD && timeSinceLastCheck > TIME_BEFORE_NEXT_TEST)
   {
     digitalWrite(LEDPIN,HIGH);
     digitalWrite(MOTORPIN, HIGH);
-    delay(3000);
+    delay(TIME_MOTOR_ON);
     lastTimeWhenChecked = millis();
   }
   else
@@ -44,5 +81,48 @@ void loop() {
   }
   
   Serial.println(sensorDouble);
-  delay(500);
+
+  if(millis() - TIME_SINCE_LAST_SEND > RATE_SEND_DATA)
+  {
+    SendData();
+    TIME_SINCE_LAST_SEND = millis();    
+  }
+  
+  delay(1000);
+  
+}
+
+
+void SendData()
+{  
+
+  // Use WiFiClient class to create TCP connections
+  WiFiClient client;
+
+  const int httpPort = 80;
+
+  if (!client.connect(server, httpPort)) {
+    Serial.println("connection failed");
+    return;
+  }
+  else
+  {
+    String data_to_send = apiKey;
+    data_to_send += "&field1=";
+    data_to_send += String(sensorDouble);
+    data_to_send += "\r\n\r\n";
+
+    client.print("POST /update HTTP/1.1\n");
+    client.print("Host: api.thingspeak.com\n");
+    client.print("Connection: close\n");
+    client.print("X-THINGSPEAKAPIKEY: " + apiKey + "\n");
+    client.print("Content-Type: application/x-www-form-urlencoded\n");
+    client.print("Content-Length: ");
+    client.print(data_to_send.length());
+    client.print("\n\n");
+    client.print(data_to_send);
+
+    delay(100);
+  }
+  client.stop();
 }
