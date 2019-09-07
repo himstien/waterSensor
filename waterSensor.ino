@@ -3,14 +3,16 @@
 #include "CloudSettings.h"
 
 // Potentiometer is connected to GPIO 34 (Analog ADC1_CH6) 
-const int sensorPin = 34;
+const int sensorPinCap = 35;
+const int sensorPinRes = 34;
 
 #define LEDPIN 2
 
 #define MOTORPIN 26
 
 // variable for storing the potentiometer value
-int sensorValue = 0;
+int sensorValueRes = 0;
+int sensorValueCap = 0;
 int MAX_VALUE = 4095;
 int MIN_VALUE = 1200;
 
@@ -19,7 +21,7 @@ unsigned long TIME_MOTOR_ON = 5000;
 
 unsigned long lastTimeWhenChecked = 0;
 
-double WATER_THRESHOLD = 0.7;
+double WATER_THRESHOLD = 0.6;
 
 double sensorDouble = 0.0;
 
@@ -50,8 +52,6 @@ void setup() {
     Serial.println("Couldn't connet to WiFi");
   }
 
-
-
   pinMode(LEDPIN,OUTPUT);
   pinMode(MOTORPIN,OUTPUT);
   delay(1000);
@@ -62,9 +62,12 @@ void setup() {
 
 void loop() {
   // Reading potentiometer value
-  sensorValue = analogRead(sensorPin);
-  sensorDouble = double(sensorValue-MIN_VALUE)/double(MAX_VALUE-MIN_VALUE);
+  sensorValueRes = analogRead(sensorPinRes);
+  sensorValueCap = analogRead(sensorPinCap);
+//  sensorDouble = double(sensorValueRes-MIN_VALUE)/double(MAX_VALUE-MIN_VALUE);
+  sensorDouble = double(sensorValueCap)/double(4095);
 
+//  sensorDouble = 0.0; 
   double timeSinceLastCheck = millis() - lastTimeWhenChecked ;
   
   if(sensorDouble > WATER_THRESHOLD && timeSinceLastCheck > TIME_BEFORE_NEXT_TEST)
@@ -81,6 +84,8 @@ void loop() {
   }
   
   Serial.println(sensorDouble);
+  Serial.println("Sensor value resistive" + String( sensorValueRes));
+  Serial.println("Sensor value capicitive" + String( sensorValueCap));
 
   if(millis() - TIME_SINCE_LAST_SEND > RATE_SEND_DATA)
   {

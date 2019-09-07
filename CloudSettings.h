@@ -3,4 +3,4 @@ String apiKey = "TKUMZ58W9EQBQ1EQ";     //  Enter your Write API key from ThingS
 const char* server = "api.thingspeak.com";
 
 unsigned long TIME_SINCE_LAST_SEND;
-unsigned long RATE_SEND_DATA = 3000;
+unsigned long RATE_SEND_DATA = 40000;
