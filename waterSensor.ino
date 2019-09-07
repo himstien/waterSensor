@@ -2,6 +2,10 @@
 
 #include "CloudSettings.h"
 
+#include "mqttSettings.h"
+
+
+
 // Potentiometer is connected to GPIO 34 (Analog ADC1_CH6) 
 const int sensorPinCap = 35;
 const int sensorPinRes = 34;
@@ -56,11 +60,23 @@ void setup() {
   pinMode(MOTORPIN,OUTPUT);
   delay(1000);
 
+  // MQTT server
+  client.setServer(mqtt_server, 1883);
+  //client.setCallback(callback);
+
+
+
   lastTimeWhenChecked = millis();
   TIME_SINCE_LAST_SEND = millis();
 }
 
 void loop() {
+
+   if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+  
   // Reading potentiometer value
   sensorValueRes = analogRead(sensorPinRes);
   sensorValueCap = analogRead(sensorPinCap);
@@ -89,14 +105,24 @@ void loop() {
 
   if(millis() - TIME_SINCE_LAST_SEND > RATE_SEND_DATA)
   {
-    SendData();
+    //SendData();
+
+    SendDataMQTT();
     TIME_SINCE_LAST_SEND = millis();    
+    
   }
   
   delay(1000);
   
 }
 
+void SendDataMQTT()
+{
+  String dataToSend = "";
+  dataToSend += " \"Sensor_ID\": \"ESP1\", \"Moisture\": ";
+  dataToSend += String(sensorDouble) + "}";
+  client.publish(topicToPublish, (char*) dataToSend.c_str());
+}
 
 void SendData()
 {  
